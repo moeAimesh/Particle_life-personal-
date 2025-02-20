@@ -1,19 +1,22 @@
-from particle_simulation.main_classes import ParticleField
-from particle_simulation.vispy_simulation import VisPyCanvas
-from vispy import app
+import sys
 import pyautogui
+
+from particle_simulation.main_classes import ParticleField
+from particle_simulation.vispy_simulation import start_simulation
+
+
+from vispy import app
+
+
 
 # Bildschirmgröße abrufen
 screen_width, screen_height = pyautogui.size()
 
 if __name__ == "__main__":
     # Erstelle das Partikelfeld
-    field = ParticleField(screen_width, screen_height, num_particles=20000)
+    field = ParticleField(screen_width, screen_height - 100, num_particles=20000)
 
-    # Starte die VisPy-Visualisierung
-    canvas = VisPyCanvas(field, screen_width, screen_height)
-
-    # Starte die Partikelbewegung mit Interaktionsoptionen
+    # Starte die Simulation
     field.start_movement(interaction_options={
         "A_A": True,
         "A_B": False,
@@ -27,8 +30,5 @@ if __name__ == "__main__":
         "D_D": False
     })
 
-    # Zeige das VisPy-Fenster
-    canvas.show()
-
-    # Starte die VisPy-App-Schleife
-    app.run()
+    # Starte die GUI mit Slider und VisPy-App-Schleife
+    start_simulation(field, screen_width, screen_height)
