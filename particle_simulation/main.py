@@ -1,11 +1,8 @@
-import sys
 import pyautogui
 
 from particle_simulation.main_classes import ParticleField
 from particle_simulation.vispy_simulation import start_simulation
 
-
-from vispy import app
 
 
 

@@ -1,5 +1,6 @@
 import os
 import sys
+import random
 
 import time
 from vispy import scene, app
@@ -52,6 +53,7 @@ class VisPyCanvas(scene.SceneCanvas):
 
         self.particles.set_data(pos=positions, face_color=colors, size=7, edge_width=0, edge_color=None)
 
+
     def update_particles(self, event):
         """FPS-basiertes Update für mehr Smoothness."""
         current_time = time.time()
@@ -66,12 +68,31 @@ class VisPyCanvas(scene.SceneCanvas):
         app.process_events()  # Verhindert Framedrops
         time.sleep(max(0.01 - dt, 0))  # FPS stabilisieren
 
+        
+    def update_particle_count(self, new_count):
+        """Fügt Partikel hinzu oder entfernt sie, ohne die Simulation neu zu starten."""
+        current_count = len(self.particle_field.particles)
+
+        if new_count > current_count:
+            # ➕ Partikel hinzufügen
+            self.particle_field.add_particles(new_count - current_count)
+        elif new_count < current_count:
+            # ➖ Partikel entfernen
+            self.particle_field.remove_particles(current_count - new_count)
+
+        self.init_particles()
+
+
+
+
+
+
 class MainWindow(QWidget):
     """PyQt-Fenster mit VisPy-Canvas und Slider."""
     def __init__(self, particle_field, width, height):
         super().__init__()
         self.setWindowTitle("Particle Simulation mit Slider")
-        self.resize(width, height )
+        self.resize(width, height + 100)
 
         self.particle_field = particle_field
         self.canvas = VisPyCanvas(particle_field, width, height)
@@ -95,7 +116,7 @@ class MainWindow(QWidget):
 
         # Slider zur Steuerung der Partikelanzahl
         self.slider = QSlider(Qt.Horizontal)
-        self.slider.setMinimum(100)
+        self.slider.setMinimum(50)
         self.slider.setMaximum(50000)
         self.slider.setValue(self.particle_field.num_particles)
         self.slider.setTickInterval(5000)
@@ -109,9 +130,8 @@ class MainWindow(QWidget):
     def on_slider_change(self, value):
         """Aktualisiert die Partikelanzahl bei Slider-Bewegung."""
         self.label.setText(f"Partikelanzahl: {value}")
-        self.particle_field.num_particles = value
-        self.particle_field.particles = self.particle_field.generate_particles()
-        self.canvas.init_particles()
+        self.canvas.update_particle_count(value)
+
 
 
 def start_simulation(field, width, height):

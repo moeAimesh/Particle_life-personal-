@@ -11,6 +11,8 @@ def move_particles_numba(positions, step_sizes, width, height):
         positions[i, 0] = (positions[i, 0] + np.random.uniform(-step_sizes[i], step_sizes[i])) % width
         positions[i, 1] = (positions[i, 1] + np.random.uniform(-step_sizes[i], step_sizes[i])) % height
 
+
+
 class ParticleField:
     def __init__(self, width, height, num_particles):
         self.width = width
@@ -53,6 +55,25 @@ class ParticleField:
             effect.attract_particles()
 
         self.timer = app.Timer(interval=0.02, connect=update, start=True)
+
+    def add_particles(self, count):
+        """Fügt eine bestimmte Anzahl an Partikeln hinzu."""
+        from particle_simulation.particle_classes import Particle_A, Particle_B, Particle_C, Particle_D
+        particle_types = [Particle_A, Particle_B, Particle_C, Particle_D]
+
+        for _ in range(count):
+            x = random.uniform(0, self.width)
+            y = random.uniform(0, self.height)
+            particle_type = random.choice(particle_types)
+            self.particles.append(particle_type((x, y)))
+
+
+    def remove_particles(self, count):
+        """Entfernt eine bestimmte Anzahl zufällig ausgewählter Partikel."""
+        if count > len(self.particles):
+            count = len(self.particles)
+        indices_to_remove = random.sample(range(len(self.particles)), count)  # Zufällige Indizes auswählen
+        self.particles = [p for i, p in enumerate(self.particles) if i not in indices_to_remove]
 
 class Particle:
     def __init__(self, position):
