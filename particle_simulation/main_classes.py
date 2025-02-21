@@ -10,7 +10,7 @@ def move_particles_numba(positions, step_sizes, width, height):
     for i in range(len(positions)):
         positions[i, 0] = (positions[i, 0] + np.random.uniform(-step_sizes[i], step_sizes[i])) % width
         positions[i, 1] = (positions[i, 1] + np.random.uniform(-step_sizes[i], step_sizes[i])) % height
-
+ 
 
 
 class ParticleField:
@@ -103,7 +103,7 @@ class interaction_effects:
     def __init__(self, particles, interaction_options):
         self.particles = particles
         self.interactions = InteractionMatrix(interaction_options)
-        self.octree = None
+        self.spatial_hash = None
         self.build_spatial_index()
 
     def attract_particles(self):
@@ -113,20 +113,16 @@ class interaction_effects:
         pass
 
     def build_spatial_index(self):
-        if hasattr(self, "update_counter") and self.update_counter % 10 != 0:
-            return
-        screen_width, screen_height = pyautogui.size()
-        x_min, x_max, y_min, y_max = 0, screen_width, 0, screen_height
-        self.octree = OctreeNode((x_min, x_max, y_min, y_max))
-
+        """Erstellt die Spatial Hashmap."""
+        cell_size = 10  # Zellengröße, anpassen für Performance
+        self.spatial_hash = SpatialHashGrid(cell_size)
         for particle in self.particles:
-            self.octree.insert(particle)
-
-        self.update_counter = getattr(self, "update_counter", 0) + 1
+            self.spatial_hash.insert(particle)
 
     def find_particles_within_reactionradius(self, main_particle):
+        """Sucht Nachbarpartikel mit Spatial Hashing."""
         max_neighbors = 20
-        neighbors = self.octree.query(main_particle.position, main_particle.influence_radius)
+        neighbors = self.spatial_hash.query(main_particle.position, main_particle.influence_radius)
         return neighbors[:max_neighbors]
 
 class InteractionMatrix:
@@ -142,71 +138,36 @@ class InteractionMatrix:
     def is_interaction_enabled(self, p1, p2):
         return self.matrix[p1, p2]
 
-class OctreeNode:
-    def __init__(self, boundary, depth=0, max_depth=5, max_particles=10):
-        self.boundary = boundary
-        self.depth = depth
-        self.max_depth = max_depth
-        self.max_particles = max_particles
-        self.particles = []
-        self.children = []
+class SpatialHashGrid:
+    """Spatial Hashing für schnelle Nachbarsuche."""
+    def __init__(self, cell_size):
+        self.cell_size = cell_size
+        self.grid = {}
+
+    def _hash(self, position):
+        """Berechnet den Hash-Wert basierend auf der Zellengröße."""
+        return (int(position[0] // self.cell_size), int(position[1] // self.cell_size))
 
     def insert(self, particle):
-        if not self.contains(particle.position):
-            return False
+        """Fügt ein Partikel in die entsprechende Zelle der Hashmap ein."""
+        cell = self._hash(particle.position)
+        if cell not in self.grid:
+            self.grid[cell] = []
+        self.grid[cell].append(particle)
 
-        if len(self.particles) < self.max_particles or self.depth >= self.max_depth:
-            self.particles.append(particle)
-            return True
+    def query(self, position, radius):
+        """Sucht alle Partikel in umliegenden Zellen, die innerhalb des Radius liegen."""
+        found_particles = []
+        radius_cells = int(radius // self.cell_size) + 1
+        center_cell = self._hash(position)
 
-        if not self.children:
-            self.subdivide()
-
-        for child in self.children:
-            if child.insert(particle):
-                return True
-
-        return False
-
-    def contains(self, position):
-        x_min, x_max, y_min, y_max = self.boundary
-        return x_min <= position[0] <= x_max and y_min <= position[1] <= y_max
-
-    def subdivide(self):
-        x_min, x_max, y_min, y_max = self.boundary
-        x_mid = (x_min + x_max) / 2
-        y_mid = (y_min + y_max) / 2
-
-        self.children = [
-            OctreeNode((x_min, x_mid, y_min, y_mid), self.depth + 1, self.max_depth, self.max_particles),
-            OctreeNode((x_mid, x_max, y_min, y_mid), self.depth + 1, self.max_depth, self.max_particles),
-            OctreeNode((x_min, x_mid, y_mid, y_max), self.depth + 1, self.max_depth, self.max_particles),
-            OctreeNode((x_mid, x_max, y_mid, y_max), self.depth + 1, self.max_depth, self.max_particles),
-        ]
-
-    def query(self, position, radius, found_particles=None):
-        if found_particles is None:
-            found_particles = []
-
-        if not self.intersects(position, radius):
-            return found_particles
-
-        for particle in self.particles:
-            dist_sq = (particle.position[0] - position[0])**2 + (particle.position[1] - position[1])**2
-            if dist_sq <= radius**2:
-                found_particles.append(particle)
-
-        for child in self.children:
-            child.query(position, radius, found_particles)
+        for dx in range(-radius_cells, radius_cells + 1):
+            for dy in range(-radius_cells, radius_cells + 1):
+                cell = (center_cell[0] + dx, center_cell[1] + dy)
+                if cell in self.grid:
+                    for particle in self.grid[cell]:
+                        dist_sq = (particle.position[0] - position[0])**2 + (particle.position[1] - position[1])**2
+                        if dist_sq <= radius**2:
+                            found_particles.append(particle)
 
         return found_particles
-
-    def intersects(self, position, radius):
-        x_min, x_max, y_min, y_max = self.boundary
-        x, y = position
-
-        nearest_x = max(x_min, min(x, x_max))
-        nearest_y = max(y_min, min(y, y_max))
-        dist_sq = (x - nearest_x) ** 2 + (y - nearest_y) ** 2
-
-        return dist_sq <= radius ** 2
