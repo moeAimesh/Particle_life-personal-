@@ -145,3 +145,4 @@ def start_simulation(field, width, height):
 
     app_qt.aboutToQuit.connect(app.quit)  # Beendet VisPy, wenn PyQt geschlossen wird
     app.run()  # VisPy-App-Schleife starten
+

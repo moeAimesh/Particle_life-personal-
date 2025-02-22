@@ -52,7 +52,7 @@ class ParticleField:
         def update(event):
             self.update_particles()
             effect.build_spatial_index()
-            effect.attract_particles()
+
 
         self.timer = app.Timer(interval=0.02, connect=update, start=True)
 
@@ -66,6 +66,12 @@ class ParticleField:
             y = random.uniform(0, self.height)
             particle_type = random.choice(particle_types)
             self.particles.append(particle_type((x, y)))
+        inter= interaction_effects(self.particles, None)
+
+
+        neighbors = inter.find_particles_within_reactionradius(particle_type)
+        if neighbors: #------------------------------------------------------------------------------------
+            print(f"Partikel bei {particle_type.position} hat {len(neighbors)} Nachbarn")
 
 
     def remove_particles(self, count):
@@ -118,11 +124,14 @@ class interaction_effects:
         self.spatial_hash = SpatialHashGrid(cell_size)
         for particle in self.particles:
             self.spatial_hash.insert(particle)
+        print(f"Spatial Hashmap enthält {sum(len(v) for v in self.spatial_hash.grid.values())} Partikel in {len(self.spatial_hash.grid)} Zellen.")
+
 
     def find_particles_within_reactionradius(self, main_particle):
         """Sucht Nachbarpartikel mit Spatial Hashing."""
         max_neighbors = 20
         neighbors = self.spatial_hash.query(main_particle.position, main_particle.influence_radius)
+        print(f"Partikel bei {main_particle.position} hat {len(neighbors)} Nachbarn")
         return neighbors[:max_neighbors]
 
 class InteractionMatrix:
@@ -171,3 +180,9 @@ class SpatialHashGrid:
                             found_particles.append(particle)
 
         return found_particles
+    
+
+
+#TO Do
+#SICHERSTELLEN DASS HASHMAP AKTUALISIERT WIRD WENN DIE ANZAHL VON PARTICLES GESTEUERT WIRD 
+#MAYBE PARTICLES IN DEN HASHMAPS PACKEN DIREKT BEIM GENERIERUNG ?

@@ -7,7 +7,7 @@ class Particle_A(Particle):
         self.type_id = 0
         self.influence_strength = 1
         self.step_size = 0.5
-        self.influence_radius = 1
+        self.influence_radius = 20
         self.color = Particle.generate_particle_colors(self.particle_label, 1)[0]
 
 class Particle_B(Particle):
@@ -17,7 +17,7 @@ class Particle_B(Particle):
         self.type_id = 1
         self.influence_strength = 1
         self.step_size = 0.5
-        self.influence_radius = 1
+        self.influence_radius = 20
         self.color = Particle.generate_particle_colors(self.particle_label, 1)[0]
 
 class Particle_C(Particle):
@@ -27,7 +27,7 @@ class Particle_C(Particle):
         self.type_id = 2
         self.influence_strength = 1
         self.step_size = 0.5
-        self.influence_radius = 1
+        self.influence_radius = 20
         self.color = Particle.generate_particle_colors(self.particle_label, 1)[0]
 
 class Particle_D(Particle):
@@ -37,5 +37,6 @@ class Particle_D(Particle):
         self.type_id = 3
         self.influence_strength = 1
         self.step_size = 0.5
-        self.influence_radius = 1
+        self.influence_radius = 20
+        
         self.color = Particle.generate_particle_colors(self.particle_label, 1)[0]

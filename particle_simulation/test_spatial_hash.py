@@ -1,6 +1,8 @@
 import unittest
 from main_classes import SpatialHashGrid, Particle
 
+"""ONLY FOR INITIAL FUNCTIONALITY TESTINTG, TO BE DELETED LATER"""
+
 class TestSpatialHashGrid(unittest.TestCase):
     def setUp(self):
         self.grid = SpatialHashGrid(cell_size=10)
@@ -25,7 +27,7 @@ class TestSpatialHashGrid(unittest.TestCase):
         self.assertIn(self.particle1, result)
         self.assertIn(self.particle2, result)
         self.assertNotIn(self.particle3, result)  # Außerhalb des Radius
-        print(result)
+    
 
 if __name__ == '__main__':
     unittest.main()
