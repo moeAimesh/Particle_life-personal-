@@ -2,15 +2,18 @@ import random
 import math
 from vispy import app
 import numpy as np
-from numba import njit
+from numba import njit, prange
 import pyautogui
+
 
 @njit(parallel=True)
 def move_particles_numba(positions, step_sizes, width, height):
-    for i in range(len(positions)):
-        positions[i, 0] = (positions[i, 0] + np.random.uniform(-step_sizes[i], step_sizes[i])) % width
-        positions[i, 1] = (positions[i, 1] + np.random.uniform(-step_sizes[i], step_sizes[i])) % height
- 
+    """Parallele Bewegung der Partikel mit Numba und prange."""
+    n = len(positions)
+    for i in prange(n):
+        step_size = step_sizes[i]
+        positions[i, 0] = (positions[i, 0] + np.random.uniform(-step_size, step_size)) % width
+        positions[i, 1] = (positions[i, 1] + np.random.uniform(-step_size, step_size)) % height
 
 
 class ParticleField:
@@ -18,7 +21,7 @@ class ParticleField:
         self.width = width
         self.height = height
         self.num_particles = num_particles
-        self.spatial_hash = SpatialHashGrid(cell_size=30)
+        self.spatial_hash = SpatialHashGrid(cell_size=2)
         self.particles = self.generate_particles()
         
 
@@ -147,8 +150,9 @@ class interaction_effects:
 
     def build_spatial_index(self):
         """Erstellt die Spatial Hashmap."""
-        cell_size = 30  # Zellengröße, anpassen für Performance Kleinerer Wert (z. B. 2 oder 3): Mehr, aber kleinere Zellen. Gut bei vielen Partikeln mit kleinem Einflussradius, kann aber langsamer werden, wenn zu viele Zellen entstehen.
-                       # Größerer Wert (z. B. 10 oder 20): Weniger, aber größere Zellen. Gut bei wenigen Partikeln mit großem Einflussradius, aber weniger genau bei Nachbarschaftssuch)
+        cell_size = 2  # Zellengröße, anpassen für Performance:
+                        # Kleinerer Wert (z. B. 2 oder 3): Mehr, aber kleinere Zellen. Gut bei vielen Partikeln mit kleinem Einflussradius, kann aber langsamer werden, wenn zu viele Zellen entstehen.
+                        # Größerer Wert (z. B. 10 oder 20): Weniger, aber größere Zellen. Gut bei wenigen Partikeln mit großem Einflussradius, aber weniger genau bei Nachbarschaftssuch)
         self.spatial_hash = SpatialHashGrid(cell_size)
         for particle in self.particles:
             self.spatial_hash.insert(particle)
