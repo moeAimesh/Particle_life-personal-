@@ -11,7 +11,7 @@ screen_width, screen_height = pyautogui.size()
 
 if __name__ == "__main__":
     # Erstelle das Partikelfeld
-    field = ParticleField(screen_width, screen_height - 100, num_particles=20000)
+    field = ParticleField(screen_width, screen_height - 100, num_particles=5000)
 
     # Starte die Simulation
     field.start_movement(interaction_options={
@@ -26,6 +26,6 @@ if __name__ == "__main__":
         "C_D": False,
         "D_D": False
     })
-
+ 
     # Starte die GUI mit Slider und VisPy-App-Schleife
     start_simulation(field, screen_width, screen_height)

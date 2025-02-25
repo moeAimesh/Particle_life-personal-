@@ -51,7 +51,7 @@ class VisPyCanvas(scene.SceneCanvas):
         positions = np.array([p.position for p in self.particle_field.particles], dtype=np.float32)
         colors = np.array([p.color for p in self.particle_field.particles], dtype=np.float32)
 
-        self.particles.set_data(pos=positions, face_color=colors, size=7, edge_width=0, edge_color=None)
+        self.particles.set_data(pos=positions, face_color=colors, size=5, edge_width=0, edge_color=None)
 
 
     def update_particles(self, event):
@@ -61,11 +61,10 @@ class VisPyCanvas(scene.SceneCanvas):
         self.last_time = current_time  # Update Zeitstempel
 
         self.particle_field.update_particles()  # Simuliere Bewegung
-        positions = np.array([p.position for p in self.particle_field.particles], dtype=np.float32)
-        colors = np.array([p.color for p in self.particle_field.particles], dtype=np.float32)
-        self.particles.set_data(pos=positions, size=7, face_color=colors)  # VisPy Rendering
 
-        app.process_events()  # Verhindert Framedrops
+        
+        self.update()
+        
         time.sleep(max(0.01 - dt, 0))  # FPS stabilisieren
 
         

@@ -2,19 +2,29 @@ import random
 import math
 from vispy import app
 import numpy as np
-from numba import njit, prange
 import pyautogui
 
 
-@njit(parallel=True)
-def move_particles_numba(positions, step_sizes, width, height):
-    """Parallele Bewegung der Partikel mit Numba und prange."""
-    n = len(positions)
-    for i in prange(n):
-        step_size = step_sizes[i]
-        positions[i, 0] = (positions[i, 0] + np.random.uniform(-step_size, step_size)) % width
-        positions[i, 1] = (positions[i, 1] + np.random.uniform(-step_size, step_size)) % height
+from numba import njit, prange
 
+@njit(parallel=True)
+def calculate_cell_indices(positions, cell_size):
+    """Berechnet die Zellindizes der Partikel parallel."""
+    n = len(positions)
+    cell_indices = np.empty((n, 2), dtype=np.int32)
+    for i in prange(n):
+        cell_indices[i, 0] = int(positions[i, 0] // cell_size)
+        cell_indices[i, 1] = int(positions[i, 1] // cell_size)
+    return cell_indices
+
+@staticmethod
+def move_particles(positions, step_sizes, width, height):
+    n = len(positions)
+    random_x = np.random.uniform(-step_sizes, step_sizes, size=n)
+    random_y = np.random.uniform(-step_sizes, step_sizes, size=n)
+
+    positions[:, 0] = (positions[:, 0] + random_x) % width
+    positions[:, 1] = (positions[:, 1] + random_y) % height
 
 class ParticleField:
     def __init__(self, width, height, num_particles):
@@ -48,7 +58,7 @@ class ParticleField:
         positions = np.array([p.position for p in self.particles], dtype=np.float32)
         step_sizes = np.array([p.step_size for p in self.particles], dtype=np.float32)
 
-        move_particles_numba(positions, step_sizes, self.width, self.height)
+        move_particles(positions, step_sizes, self.width, self.height)
 
         
 
@@ -148,20 +158,28 @@ class interaction_effects:
     def repel_particles(self, repulsion_enabled):
         pass
 
+
     def build_spatial_index(self):
-        """Erstellt die Spatial Hashmap."""
-        cell_size = 2  # Zellengröße, anpassen für Performance:
+        """Erstellt die Spatial Hashmap mit Numba."""
+        cell_size = 20  # Zellengröße, anpassen für Performance:
                         # Kleinerer Wert (z. B. 2 oder 3): Mehr, aber kleinere Zellen. Gut bei vielen Partikeln mit kleinem Einflussradius, kann aber langsamer werden, wenn zu viele Zellen entstehen.
                         # Größerer Wert (z. B. 10 oder 20): Weniger, aber größere Zellen. Gut bei wenigen Partikeln mit großem Einflussradius, aber weniger genau bei Nachbarschaftssuch)
         self.spatial_hash = SpatialHashGrid(cell_size)
-        for particle in self.particles:
-            self.spatial_hash.insert(particle)
-        print(f"Spatial Hashmap enthält {sum(len(v) for v in self.spatial_hash.grid.values())} Partikel in {len(self.spatial_hash.grid)} Zellen.")
 
+        positions = np.array([p.position for p in self.particles], dtype=np.float32)
+        cell_indices = calculate_cell_indices(positions, cell_size)
+
+        # Hashmap in einem Schritt auffüllen
+        for idx, particle in zip(cell_indices, self.particles):
+            cell = tuple(idx)
+            if cell not in self.spatial_hash.grid:
+                self.spatial_hash.grid[cell] = []
+            self.spatial_hash.grid[cell].append(particle)
+        print(f"Spatial Hashmap enthält {sum(len(v) for v in self.spatial_hash.grid.values())} Partikel in {len(self.spatial_hash.grid)} Zellen.")
 
     def find_particles_within_reactionradius(self, main_particle):
         """Sucht Nachbarpartikel mit Spatial Hashing."""
-        max_neighbors = 20 # =None für unbegrenzt 
+        max_neighbors = None # =None für unbegrenzt 
         neighbors = self.spatial_hash.query(main_particle.position, main_particle.influence_radius)
         print(f"Partikel bei {main_particle.position} hat {len(neighbors)} Nachbarn")
         return neighbors[:max_neighbors]
