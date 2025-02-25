@@ -18,7 +18,9 @@ class ParticleField:
         self.width = width
         self.height = height
         self.num_particles = num_particles
+        self.spatial_hash = SpatialHashGrid(cell_size=30)
         self.particles = self.generate_particles()
+        
 
     def generate_particles(self):
         from particle_simulation.particle_classes import Particle_A, Particle_B, Particle_C, Particle_D
@@ -34,7 +36,9 @@ class ParticleField:
                     x = (i + 0.5) * spacing_x
                     y = (j + 0.5) * spacing_y
                     particle_type = random.choice([Particle_A, Particle_B, Particle_C, Particle_D])
-                    particles_list.append(particle_type((x, y)))
+                    particle = particle_type((x, y))
+                    particles_list.append(particle)
+                    self.spatial_hash.insert(particle)
         return particles_list
 
     def update_particles(self):
@@ -43,8 +47,20 @@ class ParticleField:
 
         move_particles_numba(positions, step_sizes, self.width, self.height)
 
+        
+
         for i, particle in enumerate(self.particles):
+            old_cell = self.spatial_hash._hash(particle.position)
             particle.position = (positions[i, 0], positions[i, 1])
+            new_cell = self.spatial_hash._hash(particle.position)
+
+            # Nur aktualisieren, wenn sich die Zelle geändert hat
+            if old_cell != new_cell:
+                self.spatial_hash.remove(particle)
+                self.spatial_hash.insert(particle)
+
+
+
 
     def start_movement(self, interaction_options):
         effect = interaction_effects(self.particles, interaction_options)
@@ -53,6 +69,9 @@ class ParticleField:
             self.update_particles()
             effect.build_spatial_index()
 
+
+        if hasattr(self, 'timer') and self.timer.running:
+            self.timer.stop()
 
         self.timer = app.Timer(interval=0.02, connect=update, start=True)
 
@@ -66,20 +85,27 @@ class ParticleField:
             y = random.uniform(0, self.height)
             particle_type = random.choice(particle_types)
             self.particles.append(particle_type((x, y)))
-        inter= interaction_effects(self.particles, None)
+            self.spatial_hash.insert(particle_type((x, y)))
+            
+        
 
 
-        neighbors = inter.find_particles_within_reactionradius(particle_type)
-        if neighbors: #------------------------------------------------------------------------------------
-            print(f"Partikel bei {particle_type.position} hat {len(neighbors)} Nachbarn")
 
 
     def remove_particles(self, count):
-        """Entfernt eine bestimmte Anzahl zufällig ausgewählter Partikel."""
+        """Entfernt zufällige Partikel und aktualisiert die Hashmap."""
         if count > len(self.particles):
             count = len(self.particles)
-        indices_to_remove = random.sample(range(len(self.particles)), count)  # Zufällige Indizes auswählen
-        self.particles = [p for i, p in enumerate(self.particles) if i not in indices_to_remove]
+
+        indices_to_remove = random.sample(range(len(self.particles)), count)
+        particles_to_remove = [self.particles[i] for i in indices_to_remove]
+
+        # Entfernen aus Hashmap und Partikel-Liste
+        for particle in particles_to_remove:
+            self.spatial_hash.remove(particle)  # Entferne aus Hashmap
+            self.particles.remove(particle)
+
+
 
 class Particle:
     def __init__(self, position):
@@ -112,7 +138,8 @@ class interaction_effects:
         self.spatial_hash = None
         self.build_spatial_index()
 
-    def attract_particles(self):
+
+    def attract_particles(self, repulsion_enabled):
         pass
 
     def repel_particles(self, repulsion_enabled):
@@ -120,7 +147,8 @@ class interaction_effects:
 
     def build_spatial_index(self):
         """Erstellt die Spatial Hashmap."""
-        cell_size = 10  # Zellengröße, anpassen für Performance
+        cell_size = 30  # Zellengröße, anpassen für Performance Kleinerer Wert (z. B. 2 oder 3): Mehr, aber kleinere Zellen. Gut bei vielen Partikeln mit kleinem Einflussradius, kann aber langsamer werden, wenn zu viele Zellen entstehen.
+                       # Größerer Wert (z. B. 10 oder 20): Weniger, aber größere Zellen. Gut bei wenigen Partikeln mit großem Einflussradius, aber weniger genau bei Nachbarschaftssuch)
         self.spatial_hash = SpatialHashGrid(cell_size)
         for particle in self.particles:
             self.spatial_hash.insert(particle)
@@ -129,7 +157,7 @@ class interaction_effects:
 
     def find_particles_within_reactionradius(self, main_particle):
         """Sucht Nachbarpartikel mit Spatial Hashing."""
-        max_neighbors = 20
+        max_neighbors = 20 # =None für unbegrenzt 
         neighbors = self.spatial_hash.query(main_particle.position, main_particle.influence_radius)
         print(f"Partikel bei {main_particle.position} hat {len(neighbors)} Nachbarn")
         return neighbors[:max_neighbors]
@@ -163,6 +191,21 @@ class SpatialHashGrid:
         if cell not in self.grid:
             self.grid[cell] = []
         self.grid[cell].append(particle)
+
+    def clear(self):
+        """Leert die gesamte Hashmap."""
+        self.grid = {}
+
+    def remove(self, particle):
+        """Entfernt ein Partikel aus der entsprechenden Zelle der Hashmap."""
+        cell = self._hash(particle.position)
+        if cell in self.grid:
+            try:
+                self.grid[cell].remove(particle)
+                if not self.grid[cell]:  #Zelle löschen, wenn sie leer ist
+                    del self.grid[cell]
+            except ValueError:
+                pass  #Partikel nicht gefunden, ignorieren
 
     def query(self, position, radius):
         """Sucht alle Partikel in umliegenden Zellen, die innerhalb des Radius liegen."""
